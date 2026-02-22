@@ -1,0 +1,59 @@
+name: Keep Streamlit App Awake with Selenium
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Every 30 minutes – adjust if needed (more frequent is safer)
+  workflow_dispatch:
+
+jobs:
+  wake-up:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install selenium webdriver-manager
+
+      - name: Run wake-up script
+        run: |
+          python - <<'EOF'
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+          from webdriver_manager.chrome import ChromeDriverManager
+          from selenium.webdriver.chrome.service import Service
+          import time
+
+          options = Options()
+          options.add_argument("--headless")
+          options.add_argument("--no-sandbox")
+          options.add_argument("--disable-dev-shm-usage")
+          options.add_argument("--disable-gpu")
+          options.add_argument("--window-size=1920,1080")
+
+          driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
+          try:
+              driver.get("https://timetrackerproject.streamlit.app//")
+              time.sleep(10)  # Wait for page to load
+
+              # If sleep page is detected, click the wake-up button
+              try:
+                  wake_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Yes, get this app back up')]")
+                  wake_button.click()
+                  print("Sleep page detected – clicked wake-up button")
+                  time.sleep(30)  # Wait for app to fully warm up
+              except:
+                  print("App already awake – no action needed")
+
+              print("Page title:", driver.title)
+          finally:
+              driver.quit()
+          EOF
